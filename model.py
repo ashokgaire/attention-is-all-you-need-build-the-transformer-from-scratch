@@ -539,14 +539,81 @@ def decoder_layer_feed_forward_sublayer(
         beta
     )
 
-# Step 46 - assemble_decoder_layer (not yet solved)
-# TODO: implement
+# Step 46 - assemble_decoder_layer
+def assemble_decoder_layer(y,
+                           encoder_output,
+                           layer_params,
+                           num_heads,
+                           src_mask=None,
+                           tgt_mask=None):
 
-# Step 47 - stack_decoder_layers (not yet solved)
-# TODO: implement
+    y = decoder_layer_masked_self_attention_sublayer(
+        y,
+        layer_params["masked_w_q"],
+        layer_params["masked_w_k"],
+        layer_params["masked_w_v"],
+        layer_params["masked_w_o"],
+        layer_params["masked_gamma"],
+        layer_params["masked_beta"],
+        num_heads,
+        tgt_mask
+    )
 
-# Step 48 - apply_final_output_projection (not yet solved)
-# TODO: implement
+    y = decoder_layer_cross_attention_sublayer(
+        y,
+        encoder_output,
+        layer_params["cross_w_q"],
+        layer_params["cross_w_k"],
+        layer_params["cross_w_v"],
+        layer_params["cross_w_o"],
+        layer_params["cross_gamma"],
+        layer_params["cross_beta"],
+        num_heads,
+        src_mask
+    )
+
+    y = decoder_layer_feed_forward_sublayer(
+        y,
+        layer_params["w1"],
+        layer_params["b1"],
+        layer_params["w2"],
+        layer_params["b2"],
+        layer_params["ffn_gamma"],
+        layer_params["ffn_beta"]
+    )
+
+    return y
+
+# Step 47 - stack_decoder_layers
+def stack_decoder_layers(y,
+                         encoder_output,
+                         decoder_layer_params_list,
+                         num_heads,
+                         src_mask=None,
+                         tgt_mask=None):
+
+    for layer_params in decoder_layer_params_list:
+        y = assemble_decoder_layer(
+            y,
+            encoder_output,
+            layer_params,
+            num_heads,
+            src_mask,
+            tgt_mask
+        )
+
+    return y
+
+# Step 48 - apply_final_output_projection
+def apply_final_output_projection(decoder_output,
+                                  output_projection_weight,
+                                  output_projection_bias=None):
+
+    return apply_linear_projection(
+        decoder_output,
+        output_projection_weight,
+        output_projection_bias
+    )
 
 # Step 49 - tie_output_projection_to_token_embeddings (not yet solved)
 # TODO: implement

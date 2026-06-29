@@ -472,8 +472,28 @@ def stack_encoder_layers(x, encoder_layer_params_list, num_heads, src_mask=None)
 
     return hidden
 
-# Step 43 - decoder_layer_masked_self_attention_sublayer (not yet solved)
-# TODO: implement
+# Step 43 - decoder_layer_masked_self_attention_sublayer
+def decoder_layer_masked_self_attention_sublayer(
+    y, w_q, w_k, w_v, w_o,
+    gamma, beta,
+    num_heads,
+    mask
+):
+    # Masked self-attention
+    attn_out = assemble_multi_head_attention_forward(
+        y, y, y,          # self-attention
+        w_q, w_k, w_v, w_o,
+        num_heads,
+        mask
+    )
+
+    # Residual + LayerNorm
+    return apply_residual_add_and_norm(
+        y,
+        attn_out,
+        gamma,
+        beta
+    )
 
 # Step 44 - decoder_layer_cross_attention_sublayer (not yet solved)
 # TODO: implement

@@ -495,11 +495,49 @@ def decoder_layer_masked_self_attention_sublayer(
         beta
     )
 
-# Step 44 - decoder_layer_cross_attention_sublayer (not yet solved)
-# TODO: implement
+# Step 44 - decoder_layer_cross_attention_sublayer
+def decoder_layer_cross_attention_sublayer(
+    y, encoder_output,
+    w_q, w_k, w_v, w_o,
+    gamma, beta,
+    num_heads,
+    src_mask=None
+):
+    attn_output = assemble_multi_head_attention_forward(
+        y,
+        encoder_output,
+        encoder_output,
+        w_q, w_k, w_v, w_o,
+        num_heads,
+        src_mask
+    )
 
-# Step 45 - decoder_layer_feed_forward_sublayer (not yet solved)
-# TODO: implement
+    return apply_residual_add_and_norm(
+        y,
+        attn_output,
+        gamma,
+        beta
+    )
+
+# Step 45 - decoder_layer_feed_forward_sublayer
+def decoder_layer_feed_forward_sublayer(
+    y,
+    w1, b1,
+    w2, b2,
+    gamma, beta
+):
+    ffn_output = position_wise_feed_forward_network(
+        y,
+        w1, b1,
+        w2, b2
+    )
+
+    return apply_residual_add_and_norm(
+        y,
+        ffn_output,
+        gamma,
+        beta
+    )
 
 # Step 46 - assemble_decoder_layer (not yet solved)
 # TODO: implement

@@ -615,8 +615,9 @@ def apply_final_output_projection(decoder_output,
         output_projection_bias
     )
 
-# Step 49 - tie_output_projection_to_token_embeddings (not yet solved)
-# TODO: implement
+# Step 49 - tie_output_projection_to_token_embeddings
+def tie_output_projection_to_token_embeddings(token_embedding_matrix):
+    return token_embedding_matrix.T
 
 # Step 50 - apply_log_softmax_over_vocab (not yet solved)
 # TODO: implement

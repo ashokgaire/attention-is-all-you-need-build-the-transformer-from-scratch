@@ -850,8 +850,13 @@ def build_uniform_smoothing_distribution(shape, vocab_size, epsilon):
     value = epsilon / (vocab_size - 2)
     return torch.full(shape, value, dtype=torch.float32)
 
-# Step 59 - set_confidence_on_gold_tokens (not yet solved)
-# TODO: implement
+# Step 59 - set_confidence_on_gold_tokens
+import torch
+
+def set_confidence_on_gold_tokens(smoothed_distribution, gold_token_ids, confidence):
+    out = smoothed_distribution.clone()
+    out.scatter_(-1, gold_token_ids.unsqueeze(-1), confidence)
+    return out
 
 # Step 60 - zero_pad_column_and_pad_token_rows (not yet solved)
 # TODO: implement

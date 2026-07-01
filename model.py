@@ -623,14 +623,148 @@ def tie_output_projection_to_token_embeddings(token_embedding_matrix):
 def apply_log_softmax_over_vocab(logits):
     return torch.log_softmax(logits, dim=-1)
 
-# Step 51 - run_transformer_forward (not yet solved)
-# TODO: implement
+# Step 51 - run_transformer_forward
+def run_transformer_forward(src_ids,
+                            tgt_ids,
+                            model_params,
+                            num_heads,
+                            pad_id):
 
-# Step 52 - init_encoder_layer_parameters (not yet solved)
-# TODO: implement
+    # Extract parameters
+    token_embedding = model_params['token_embedding']
+    encoder_layers = model_params['encoder_layers']
+    decoder_layers = model_params['decoder_layers']
+    output_projection = model_params['output_projection']
 
-# Step 53 - init_decoder_layer_parameters (not yet solved)
-# TODO: implement
+    # ------------------------------------------------------------------
+    # Source embeddings
+    # ------------------------------------------------------------------
+    src_emb = token_embedding[src_ids]
+    src_emb = scale_embeddings_by_sqrt_d_model(src_emb)
+
+    # ------------------------------------------------------------------
+    # Target embeddings
+    # ------------------------------------------------------------------
+    tgt_emb = token_embedding[tgt_ids]
+    tgt_emb = scale_embeddings_by_sqrt_d_model(tgt_emb)
+
+    # ------------------------------------------------------------------
+    # Positional encoding
+    # ------------------------------------------------------------------
+    max_len = max(src_ids.shape[1], tgt_ids.shape[1])
+    d_model = token_embedding.shape[1]
+
+    pe = build_sinusoidal_positional_encoding(max_len, d_model)
+
+    src_emb = add_positional_encoding_to_embeddings(src_emb, pe)
+    tgt_emb = add_positional_encoding_to_embeddings(tgt_emb, pe)
+
+    # ------------------------------------------------------------------
+    # Masks
+    # ------------------------------------------------------------------
+    src_mask = build_padding_mask(src_ids, pad_id)
+
+    tgt_padding_mask = build_padding_mask(tgt_ids, pad_id)
+    causal_mask = build_causal_mask(tgt_ids.shape[1])
+
+    tgt_mask = combine_padding_and_causal_masks(
+        tgt_padding_mask,
+        causal_mask
+    )
+
+    # ------------------------------------------------------------------
+    # Encoder
+    # ------------------------------------------------------------------
+    encoder_output = stack_encoder_layers(
+        src_emb,
+        encoder_layers,
+        num_heads,
+        src_mask
+    )
+
+    # ------------------------------------------------------------------
+    # Decoder
+    # ------------------------------------------------------------------
+    decoder_output = stack_decoder_layers(
+        tgt_emb,
+        encoder_output,
+        decoder_layers,
+        num_heads,
+        src_mask,
+        tgt_mask
+    )
+
+    # ------------------------------------------------------------------
+    # Final projection + log softmax
+    # ------------------------------------------------------------------
+    logits = apply_final_output_projection(
+        decoder_output,
+        output_projection
+    )
+
+    return apply_log_softmax_over_vocab(logits)
+
+# Step 52 - init_encoder_layer_parameters
+import torch
+
+def init_encoder_layer_parameters(d_model, num_heads, d_ff):
+    return {
+        # Multi-head attention projections (no bias)
+        "w_q": torch.randn(d_model, d_model, dtype=torch.float32, requires_grad=True),
+        "w_k": torch.randn(d_model, d_model, dtype=torch.float32, requires_grad=True),
+        "w_v": torch.randn(d_model, d_model, dtype=torch.float32, requires_grad=True),
+        "w_o": torch.randn(d_model, d_model, dtype=torch.float32, requires_grad=True),
+
+        # Feed-forward network
+        "w1": torch.randn(d_model, d_ff, dtype=torch.float32, requires_grad=True),
+        "b1": torch.zeros(d_ff, dtype=torch.float32, requires_grad=True),
+        "w2": torch.randn(d_ff, d_model, dtype=torch.float32, requires_grad=True),
+        "b2": torch.zeros(d_model, dtype=torch.float32, requires_grad=True),
+
+        # LayerNorm after attention
+        "attn_gamma": torch.ones(d_model, dtype=torch.float32, requires_grad=True),
+        "attn_beta": torch.zeros(d_model, dtype=torch.float32, requires_grad=True),
+
+        # LayerNorm after FFN
+        "ffn_gamma": torch.ones(d_model, dtype=torch.float32, requires_grad=True),
+        "ffn_beta": torch.zeros(d_model, dtype=torch.float32, requires_grad=True),
+    }
+
+# Step 53 - init_decoder_layer_parameters
+import torch
+
+def init_decoder_layer_parameters(d_model, num_heads, d_ff):
+    return {
+        # Masked self-attention
+        "w_q_self": torch.randn(d_model, d_model, dtype=torch.float32, requires_grad=True),
+        "w_k_self": torch.randn(d_model, d_model, dtype=torch.float32, requires_grad=True),
+        "w_v_self": torch.randn(d_model, d_model, dtype=torch.float32, requires_grad=True),
+        "w_o_self": torch.randn(d_model, d_model, dtype=torch.float32, requires_grad=True),
+
+        # Cross-attention
+        "w_q_cross": torch.randn(d_model, d_model, dtype=torch.float32, requires_grad=True),
+        "w_k_cross": torch.randn(d_model, d_model, dtype=torch.float32, requires_grad=True),
+        "w_v_cross": torch.randn(d_model, d_model, dtype=torch.float32, requires_grad=True),
+        "w_o_cross": torch.randn(d_model, d_model, dtype=torch.float32, requires_grad=True),
+
+        # Feed-forward network
+        "w1": torch.randn(d_model, d_ff, dtype=torch.float32, requires_grad=True),
+        "b1": torch.zeros(d_ff, dtype=torch.float32, requires_grad=True),
+        "w2": torch.randn(d_ff, d_model, dtype=torch.float32, requires_grad=True),
+        "b2": torch.zeros(d_model, dtype=torch.float32, requires_grad=True),
+
+        # LayerNorm after masked self-attention
+        "self_gamma": torch.ones(d_model, dtype=torch.float32, requires_grad=True),
+        "self_beta": torch.zeros(d_model, dtype=torch.float32, requires_grad=True),
+
+        # LayerNorm after cross-attention
+        "cross_gamma": torch.ones(d_model, dtype=torch.float32, requires_grad=True),
+        "cross_beta": torch.zeros(d_model, dtype=torch.float32, requires_grad=True),
+
+        # LayerNorm after FFN
+        "ffn_gamma": torch.ones(d_model, dtype=torch.float32, requires_grad=True),
+        "ffn_beta": torch.zeros(d_model, dtype=torch.float32, requires_grad=True),
+    }
 
 # Step 54 - init_embedding_and_projection_parameters (not yet solved)
 # TODO: implement

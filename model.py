@@ -932,11 +932,52 @@ def apply_adam_bias_correction(m_t, v_t, beta1, beta2, step):
     v_hat = v_t / (1 - beta2 ** step)
     return m_hat, v_hat
 
-# Step 69 - apply_adam_step_to_all_parameters (not yet solved)
-# TODO: implement
+# Step 69 - apply_adam_step_to_all_parameters
+import torch
 
-# Step 70 - zero_all_parameter_gradients (not yet solved)
-# TODO: implement
+def apply_adam_step_to_all_parameters(
+    parameters,
+    optimizer_state,
+    learning_rate,
+    beta1=0.9,
+    beta2=0.999,
+    eps=1e-8,
+):
+    optimizer_state["t"] += 1
+    t = optimizer_state["t"]
+
+    with torch.no_grad():
+        for i, param in enumerate(parameters):
+            if param.grad is None:
+                continue
+
+            grad = param.grad
+
+            # Update first moment
+            optimizer_state["m"][i] = (
+                beta1 * optimizer_state["m"][i]
+                + (1 - beta1) * grad
+            ).detach()
+
+            # Update second moment
+            optimizer_state["v"][i] = (
+                beta2 * optimizer_state["v"][i]
+                + (1 - beta2) * grad.pow(2)
+            ).detach()
+
+            # Bias correction
+            m_hat = optimizer_state["m"][i] / (1 - beta1 ** t)
+            v_hat = optimizer_state["v"][i] / (1 - beta2 ** t)
+
+            # Parameter update
+            param.data -= learning_rate * m_hat / (torch.sqrt(v_hat) + eps)
+
+    return optimizer_state
+
+# Step 70 - zero_all_parameter_gradients
+def zero_all_parameter_gradients(parameters):
+    for param in parameters:
+        param.grad = None
 
 # Step 71 - compute_batch_training_loss (not yet solved)
 # TODO: implement

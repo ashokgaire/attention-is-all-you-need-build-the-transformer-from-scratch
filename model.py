@@ -829,8 +829,12 @@ def collect_model_parameters_into_list(encoder_layers, decoder_layers, embedding
 
     return params
 
-# Step 56 - shift_targets_right_with_start_token (not yet solved)
-# TODO: implement
+# Step 56 - shift_targets_right_with_start_token
+def shift_targets_right_with_start_token(target_ids, start_token_id):
+    result = target_ids.clone()
+    result[:, 1:] = target_ids[:, :-1]
+    result[:, 0] = start_token_id
+    return result
 
 # Step 57 - compute_noam_learning_rate (not yet solved)
 # TODO: implement

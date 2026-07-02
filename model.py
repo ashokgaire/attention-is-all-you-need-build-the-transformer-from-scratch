@@ -979,14 +979,129 @@ def zero_all_parameter_gradients(parameters):
     for param in parameters:
         param.grad = None
 
-# Step 71 - compute_batch_training_loss (not yet solved)
-# TODO: implement
+# Step 71 - compute_batch_training_loss
+def compute_batch_training_loss(src_batch, tgt_batch, model_params, config):
+    # 1. Build decoder input
+    decoder_input = shift_targets_right_with_start_token(
+        tgt_batch,
+        config["start_id"],
+    )
 
-# Step 72 - run_training_step_with_backprop (not yet solved)
-# TODO: implement
+    # 2. Forward pass
+    log_probabilities = run_transformer_forward(
+        src_batch,
+        decoder_input,
+        model_params,
+        config,
+    )
 
-# Step 73 - run_training_loop_for_steps (not yet solved)
-# TODO: implement
+    # 3. Build uniform smoothed distribution
+    smoothed = build_uniform_smoothing_distribution(
+        # shape should match log_probabilities
+        ...,
+        vocab_size=config["vocab_size"],
+        epsilon=config["smoothing"],
+    )
+
+    # 4. Put confidence on the gold tokens
+    smoothed = set_confidence_on_gold_tokens(
+        smoothed,
+        tgt_batch,
+        confidence=1.0 - config["smoothing"],
+    )
+
+    # 5. Remove pad contributions
+    smoothed = zero_pad_column_and_pad_token_rows(
+        smoothed,
+        tgt_batch,
+        pad_id=config["pad_id"],
+    )
+
+    # 6. Compute summed KL loss
+    total_loss = compute_label_smoothed_kl_loss(
+        log_probabilities,
+        smoothed,
+    )
+
+    # 7. Average over non-pad tokens
+    loss = average_loss_over_non_pad_tokens(
+        total_loss,
+        tgt_batch,
+        config["pad_id"],
+    )
+
+    return loss
+
+# Step 72 - run_training_step_with_backprop
+import torch
+
+def run_training_step_with_backprop(
+    src_batch,
+    tgt_batch,
+    parameter_list,
+    model_params,
+    optimizer_state,
+    step_number,
+    config,
+):
+    # 1. Clear old gradients
+    zero_all_parameter_gradients(parameter_list)
+
+    # 2. Forward pass (returns differentiable loss)
+    loss = compute_batch_training_loss(
+        src_batch,
+        tgt_batch,
+        model_params,
+        config,
+    )
+
+    # 3. Compute gradients
+    loss.backward()
+
+    # 4. Compute Noam learning rate
+    learning_rate = compute_noam_learning_rate(
+        step_number,
+        config["d_model"],
+        config["warmup_steps"],
+    )
+
+    # 5. Adam update
+    apply_adam_step_to_all_parameters(
+        parameter_list,
+        optimizer_state,
+        learning_rate,
+        beta1=config.get("beta1", 0.9),
+        beta2=config.get("beta2", 0.98),
+        eps=config.get("eps", 1e-9),
+    )
+
+    # 6. Return Python float for logging
+    return loss.item()
+
+# Step 73 - run_training_loop_for_steps
+def run_training_loop_for_steps(batches, parameter_list, model_params,
+                                optimizer_state, num_steps, config):
+    """Run num_steps training iterations, cycling through batches,
+    and return per-step losses."""
+
+    losses = []
+
+    for step in range(1, num_steps + 1):
+        src_batch, tgt_batch = batches[(step - 1) % len(batches)]
+
+        loss = run_training_step_with_backprop(
+            src_batch,
+            tgt_batch,
+            parameter_list,
+            model_params,
+            optimizer_state,
+            step,
+            config
+        )
+
+        losses.append(loss)
+
+    return losses
 
 # Step 74 - pick_next_token_by_argmax (not yet solved)
 # TODO: implement
